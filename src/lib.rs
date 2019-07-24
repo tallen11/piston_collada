@@ -5,11 +5,14 @@ extern crate vecmath;
 extern crate log;
 
 pub use obj::*;
+pub use scene::*;
 pub use vecmath::Matrix4;
 
 pub mod document;
 mod utils;
 mod obj;
+mod scene;
+mod tests;
 
 #[derive(Debug, Clone)]
 pub struct Skeleton {

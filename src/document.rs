@@ -6,12 +6,12 @@ use std::collections::HashMap;
 use utils::*;
 use obj::*;
 use xml::Element;
-use xml::Xml::CharacterNode;
+use xml::Xml::{CharacterNode, ElementNode};
 
 use vecmath;
 use xml;
 
-use {Animation, BindDataSet, BindData, Skeleton, Joint, VertexWeight, JointIndex, ROOT_JOINT_PARENT_INDEX};
+use {Animation, BindDataSet, BindData, Skeleton, Joint, VertexWeight, JointIndex, ROOT_JOINT_PARENT_INDEX, Camera, Light};
 
 enum GeometryBindingType {
     Polylist,
@@ -303,6 +303,57 @@ impl ColladaDocument {
             .collect();
 
         Some(skeletons)
+    }
+
+    pub fn get_cameras(&self) -> Option<Vec<Camera>> {
+        let library_visual_scenes = self.root_element.get_child("library_visual_scenes", self.get_ns())?;
+        let visual_scene = library_visual_scenes.get_child("visual_scene", self.get_ns())?;
+
+        let cameras: Vec<Camera> = pre_order_iter(visual_scene)
+                                    .filter(|e| e.name == "node")
+                                    .filter(|e| has_attribute_with_value(e, "id", "Camera"))
+                                    .filter_map(|e| self.get_camera(&e))
+                                    .collect();
+
+        Some(cameras)
+    }
+
+    fn get_camera(&self, root_element: &Element) -> Option<Camera> {
+        let transforms: Vec<vecmath::Matrix4<f32>> = pre_order_iter(root_element)
+                                                        .filter(|e| e.name == "matrix")
+                                                        .filter_map(|e| if let CharacterNode(ref t_str) = e.children[0] { self.parse_transform_from_str(t_str) } else { None })
+                                                        .collect();
+
+        if transforms.is_empty() {
+            return None;
+        }
+        
+        Some(Camera {
+                transform: transforms[0],
+            })
+    }
+
+    fn parse_transform_from_str(&self, t_str: &str) -> Option<vecmath::Matrix4<f32>> {
+        let nums: Vec<f32> = t_str
+                                .split(" ")
+                                .filter_map(|s| {
+                                    match s.parse::<f32>() {
+                                        Ok(n) => Some(n),
+                                        _ => None
+                                    }
+                                })
+                                .collect();
+        
+        if nums.len() != 16 {
+            return None;
+        }
+
+        Some([
+            [nums[0], nums[1], nums[2], nums[3]],
+            [nums[4], nums[5], nums[6], nums[7]],
+            [nums[8], nums[9], nums[10], nums[11]],
+            [nums[12], nums[13], nums[14], nums[15]]
+        ])
     }
 
     fn get_skeleton(&self, root_element: &Element, bind_data: &BindData) -> Option<Skeleton> {
