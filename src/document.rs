@@ -333,6 +333,34 @@ impl ColladaDocument {
             })
     }
 
+    fn get_lights(&self) -> Option<Vec<Light>> {
+        let library_visual_scenes = self.root_element.get_child("library_visual_scenes", self.get_ns())?;
+        let visual_scene = library_visual_scenes.get_child("visual_scene", self.get_ns())?;
+
+        let lights: Vec<Light> = pre_order_iter(visual_scene)
+                                    .filter(|e| e.name == "node")
+                                    .filter(|e| has_attribute_with_value(e, "id", "Lamp"))
+                                    .filter_map(|e| self.get_light(&e))
+                                    .collect();
+
+        Some(lights)
+    }
+
+    fn get_light(&self, root_element: &Element) -> Option<Light> {
+        let transforms: Vec<vecmath::Matrix4<f32>> = pre_order_iter(root_element)
+                                                        .filter(|e| e.name == "matrix")
+                                                        .filter_map(|e| if let CharacterNode(ref t_str) = e.children[0] { self.parse_transform_from_str(t_str) } else { None })
+                                                        .collect();
+
+        if transforms.is_empty() {
+            return None;
+        }
+        
+        Some(Light {
+                transform: transforms[0],
+            })
+    }
+
     fn parse_transform_from_str(&self, t_str: &str) -> Option<vecmath::Matrix4<f32>> {
         let nums: Vec<f32> = t_str
                                 .split(" ")
