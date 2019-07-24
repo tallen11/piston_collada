@@ -333,7 +333,7 @@ impl ColladaDocument {
             })
     }
 
-    fn get_lights(&self) -> Option<Vec<Light>> {
+    pub fn get_lights(&self) -> Option<Vec<Light>> {
         let library_visual_scenes = self.root_element.get_child("library_visual_scenes", self.get_ns())?;
         let visual_scene = library_visual_scenes.get_child("visual_scene", self.get_ns())?;
 
